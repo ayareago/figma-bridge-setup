@@ -1,5 +1,13 @@
 # Build log
 
+## 2026-11-03 (night)
+
+**Verified:** the normal chat in Ayodeji's Claude app (Windows Store version) used figma-console and named the open file (Class Test). The first try failed: the app wrote its settings back from memory while running and wiped the entry. Added while the app ran, the entry survived 90 s; it also survived a full quit, and the app loaded it on start.
+
+**Changed:** step 6 now waits (up to 3 min) for the student to quit the Claude app before writing its settings, on both systems. The closing message tells students to say "use figma-console", because the app otherwise picks the official Figma web connector, which can't see the open file.
+
+**Next:** Same test on a Mac.
+
 ## 2026-11-03 (evening)
 
 **Done:** Added an optional step 6 to both scripts: if the Claude desktop app is installed, ask whether to connect Figma to its normal chat too, and write figma-console into claude_desktop_config.json. Tested the config writer on fake files (new file, existing file, already added) and the Windows app detection on this computer. Not tested: an actual chat in the Claude app using the bridge, on either system.

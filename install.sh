@@ -110,6 +110,17 @@ find_claude_app() {
   [ -d "/Applications/Claude.app" ] || [ -d "$HOME/Applications/Claude.app" ]
 }
 
+# The Claude app keeps its settings in memory and writes them back while it runs,
+# which wipes an entry added behind its back. So add it while the app is closed.
+wait_claude_app_closed() {
+  pgrep -xq Claude || return 0
+  info "The Claude app is open. Quit it fully: click Claude in the menu bar > Quit Claude (Cmd+Q)."
+  info "Waiting for it to close (up to 3 minutes)..."
+  local i=0
+  while pgrep -xq Claude && [ $i -lt 180 ]; do sleep 1; i=$((i + 1)); done
+  ! pgrep -xq Claude
+}
+
 # The Claude Code installer puts claude in ~/.local/bin; make sure new terminals can find it.
 ensure_local_bin_on_path() {
   export PATH="$HOME/.local/bin:$PATH"
@@ -216,11 +227,15 @@ main() {
   if find_claude_app && has node; then
     step "Claude desktop app (normal chat)"
     if ask_yes "Also connect Figma to the normal chat in the Claude app?"; then
-      case "$(add_mcp_server "$desktop_config" "$(desktop_app_entry)")" in
-        added)  ok "Added. Quit the Claude app fully (Cmd+Q) and open it again."; DESKTOP_ADDED=1 ;;
-        exists) ok "figma-console is already in the Claude app" ;;
-        *)      problem "Could not update the Claude app's settings." ;;
-      esac
+      if wait_claude_app_closed; then
+        case "$(add_mcp_server "$desktop_config" "$(desktop_app_entry)")" in
+          added)  ok "Added. You can open the Claude app again."; DESKTOP_ADDED=1 ;;
+          exists) ok "figma-console is already in the Claude app" ;;
+          *)      problem "Could not update the Claude app's settings." ;;
+        esac
+      else
+        problem "The Claude app was still open, so the normal chat was not connected. Quit it and run this again."
+      fi
     else
       ok "Skipped"
     fi
@@ -242,7 +257,7 @@ main() {
   echo "     $MANIFEST"
   echo "  3. Menu > Plugins > Development > Figma Desktop Bridge. Leave its window open."
   echo "  4. Open Claude Code: type  claude  in a NEW Terminal window, or use the Code tab in the Claude app."
-  [ -n "$DESKTOP_ADDED" ] && echo "     Or use a normal chat in the Claude app, after quitting and reopening it."
+  [ -n "$DESKTOP_ADDED" ] && echo "     Or use a normal chat in the Claude app. Say 'use figma-console' so it doesn't pick the Figma web connector."
   echo "     Then ask: \"Check the Figma connection and tell me which file is open.\""
   echo
   echo "Step 2 is only needed once. After that, just run the plugin (step 3) each time."

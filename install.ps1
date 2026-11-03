@@ -108,6 +108,22 @@ function Find-ClaudeAppConfig {
     return $null
 }
 
+function Test-ClaudeAppRunning {
+    # Match the app's own folders only: Claude Code's claude.exe has the same process name.
+    [bool](Get-Process Claude -ErrorAction SilentlyContinue | Where-Object { $_.Path -like '*\WindowsApps\Claude_*' -or $_.Path -like '*\AnthropicClaude\*' })
+}
+
+# The Claude app keeps its settings in memory and writes them back while it runs,
+# which wipes an entry added behind its back. So add it while the app is closed.
+function Wait-ClaudeAppClosed {
+    if (-not (Test-ClaudeAppRunning)) { return $true }
+    Info 'The Claude app is open. Quit it fully: click ^ by the clock, right-click the Claude icon > Quit.'
+    Info 'Waiting for it to close (up to 3 minutes)...'
+    $deadline = (Get-Date).AddMinutes(3)
+    while ((Test-ClaudeAppRunning) -and (Get-Date) -lt $deadline) { Start-Sleep -Seconds 1 }
+    return -not (Test-ClaudeAppRunning)
+}
+
 function Find-Figma {
     $paths = @("$env:LOCALAPPDATA\Figma\Figma.exe", "$env:ProgramFiles\Figma\Figma.exe")
     return $paths | Where-Object { Test-Path $_ } | Select-Object -First 1
@@ -228,12 +244,16 @@ $desktopConfig = Find-ClaudeAppConfig
 if ($desktopConfig -and (Has 'node')) {
     Step 'Claude desktop app (normal chat)'
     if (Ask-Yes 'Also connect Figma to the normal chat in the Claude app?') {
-        # cmd /c, because apps can't start npx.cmd directly on Windows.
-        $entry = '{"command":"cmd","args":["/c","npx","-y","figma-console-mcp@latest"]}'
-        switch (Add-McpServer $desktopConfig $entry) {
-            'added'  { Ok 'Added. Quit the Claude app fully (right-click its tray icon > Quit) and open it again.'; $desktopAdded = $true }
-            'exists' { Ok 'figma-console is already in the Claude app' }
-            default  { Problem "Could not update the Claude app's settings." }
+        if (Wait-ClaudeAppClosed) {
+            # cmd /c, because apps can't start npx.cmd directly on Windows.
+            $entry = '{"command":"cmd","args":["/c","npx","-y","figma-console-mcp@latest"]}'
+            switch (Add-McpServer $desktopConfig $entry) {
+                'added'  { Ok 'Added. You can open the Claude app again.'; $desktopAdded = $true }
+                'exists' { Ok 'figma-console is already in the Claude app' }
+                default  { Problem "Could not update the Claude app's settings." }
+            }
+        } else {
+            Problem 'The Claude app was still open, so the normal chat was not connected. Quit it and run this again.'
         }
     } else {
         Ok 'Skipped'
@@ -257,7 +277,7 @@ Write-Host '     Paste this path in the file name box (it is already copied) and
 Write-Host "     $Manifest" -ForegroundColor White
 Write-Host '  3. Menu > Plugins > Development > Figma Desktop Bridge. Leave its window open.'
 Write-Host '  4. Open Claude Code: type  claude  in a NEW terminal, or use the Code tab in the Claude app.'
-if ($desktopAdded) { Write-Host '     Or use a normal chat in the Claude app, after quitting and reopening it.' }
+if ($desktopAdded) { Write-Host "     Or use a normal chat in the Claude app. Say 'use figma-console' so it doesn't pick the Figma web connector." }
 Write-Host '     Then ask: "Check the Figma connection and tell me which file is open."'
 Write-Host ''
 Write-Host 'Step 2 is only needed once. After that, just run the plugin (step 3) each time.'
