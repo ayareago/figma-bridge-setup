@@ -13,3 +13,5 @@
 **MCP config matches Ayodeji's working setup exactly:** `npx -y figma-console-mcp@latest`, user scope.
 
 **Ask before installing Claude Code; if skipped, edit ~/.claude.json directly.** Some students already use Claude (often the desktop app, whose bundled claude is not on PATH). The terminal and the Code tab of the desktop app both read ~/.claude.json, so writing the server there works for both. Done with Node, not PowerShell 5.1, whose JSON round trip can damage a large config. Turned down: also writing the Claude desktop chat config (GUI apps get a short PATH and npx often fails there).
+
+**Offer the Claude desktop app chat as an optional step (reverses the earlier "turned down").** Ayodeji wants students to be able to use the normal chat. To work around the PATH problem: on Mac the entry uses the full path to npx plus a PATH with node's folder; on Windows it runs through cmd /c, because apps can't start npx.cmd directly. Turned down: Southleft's Cloud Mode for claude.ai in the browser, which needs a Figma token, a pairing code each time, and sends designs through Southleft's server.

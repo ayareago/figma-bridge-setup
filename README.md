@@ -25,7 +25,8 @@ Repo: https://github.com/ayareago/figma-bridge-setup (public).
 3. Checks for the Figma desktop app and installs it (winget on Windows, Homebrew on Mac) or opens the download page.
 4. Downloads the latest bridge plugin from npm into `~/.figma-console-mcp/plugin`.
 5. Adds the `figma-console` MCP server to Claude Code for all projects.
-6. Copies the plugin's manifest path to the clipboard and prints the last steps, which have to be done by hand in Figma.
+6. If the Claude desktop app is installed, offers to connect its normal chat too (writes `claude_desktop_config.json`).
+7. Copies the plugin's manifest path to the clipboard and prints the last steps, which have to be done by hand in Figma.
 
 Running it again is safe. Anything already installed is skipped.
 

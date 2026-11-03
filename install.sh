@@ -14,6 +14,7 @@ MANIFEST="$PLUGIN_DIR/manifest.json"
 PROBLEMS=()
 FIGMA_APP=""
 CLAUDE=""
+DESKTOP_ADDED=""
 
 step()    { printf '\n\033[36m==> %s\033[0m\n' "$1"; }
 ok()      { printf '    \033[32m[ok]\033[0m %s\n' "$1"; }
@@ -72,24 +73,41 @@ ask_yes() {
   case "$answer" in [nN]*) return 1 ;; *) return 0 ;; esac
 }
 
-# Without the claude command, write the server straight into ~/.claude.json,
-# which both the terminal and the Code tab of the Claude desktop app read.
-add_to_claude_config() {
-  node -e '
+# Adds figma-console to the mcpServers of a JSON config file, keeping a backup.
+# Prints "added" or "exists". Usage: add_mcp_server <file> <server entry as JSON>
+add_mcp_server() {
+  FIGMA_BRIDGE_ENTRY="$2" node -e '
     const fs = require("fs");
+    const path = require("path");
     const file = process.argv[1];
     let config = {};
     if (fs.existsSync(file)) {
       const raw = fs.readFileSync(file, "utf8");
-      config = JSON.parse(raw);
+      if (raw.trim()) config = JSON.parse(raw);
       fs.writeFileSync(file + ".backup", raw);
     }
     config.mcpServers = config.mcpServers || {};
     if (config.mcpServers["figma-console"]) { console.log("exists"); process.exit(0); }
-    config.mcpServers["figma-console"] = { type: "stdio", command: "npx", args: ["-y", "figma-console-mcp@latest"], env: {} };
+    config.mcpServers["figma-console"] = JSON.parse(process.env.FIGMA_BRIDGE_ENTRY);
+    fs.mkdirSync(path.dirname(file), { recursive: true });
     fs.writeFileSync(file, JSON.stringify(config, null, 2));
     console.log("added");
-  ' "$HOME/.claude.json"
+  ' "$1"
+}
+
+# Apps opened from the Dock don't get the Terminal's PATH, so the Claude app needs
+# the full path to npx plus a PATH that includes node.
+desktop_app_entry() {
+  node -e '
+    const path = require("path");
+    const npx = path.join(path.dirname(process.execPath), "npx");
+    const PATH = [path.dirname(process.execPath), "/usr/local/bin", "/opt/homebrew/bin", "/usr/bin", "/bin"].join(":");
+    console.log(JSON.stringify({ command: npx, args: ["-y", "figma-console-mcp@latest"], env: { PATH } }));
+  '
+}
+
+find_claude_app() {
+  [ -d "/Applications/Claude.app" ] || [ -d "$HOME/Applications/Claude.app" ]
 }
 
 # The Claude Code installer puts claude in ~/.local/bin; make sure new terminals can find it.
@@ -182,13 +200,30 @@ main() {
       ok "figma-console is already set up in Claude Code"
     fi
   elif has node; then
-    case "$(add_to_claude_config)" in
-      added)  ok "Added figma-console to your Claude settings (~/.claude.json)" ;;
-      exists) ok "figma-console is already in your Claude settings" ;;
+    # Without the claude command, write straight into ~/.claude.json,
+    # which both the terminal and the Code tab of the Claude app read.
+    case "$(add_mcp_server "$HOME/.claude.json" '{"type":"stdio","command":"npx","args":["-y","figma-console-mcp@latest"],"env":{}}')" in
+      added)  ok "Added figma-console to your Claude Code settings (~/.claude.json)" ;;
+      exists) ok "figma-console is already in your Claude Code settings" ;;
       *)      problem "Could not update ~/.claude.json." ;;
     esac
   else
     problem "Skipped because Node.js is missing."
+  fi
+
+  # 6. Optional: the normal chat in the Claude desktop app
+  local desktop_config="$HOME/Library/Application Support/Claude/claude_desktop_config.json"
+  if find_claude_app && has node; then
+    step "Claude desktop app (normal chat)"
+    if ask_yes "Also connect Figma to the normal chat in the Claude app?"; then
+      case "$(add_mcp_server "$desktop_config" "$(desktop_app_entry)")" in
+        added)  ok "Added. Quit the Claude app fully (Cmd+Q) and open it again."; DESKTOP_ADDED=1 ;;
+        exists) ok "figma-console is already in the Claude app" ;;
+        *)      problem "Could not update the Claude app's settings." ;;
+      esac
+    else
+      ok "Skipped"
+    fi
   fi
 
   # What's left is done by hand in Figma
@@ -207,6 +242,7 @@ main() {
   echo "     $MANIFEST"
   echo "  3. Menu > Plugins > Development > Figma Desktop Bridge. Leave its window open."
   echo "  4. Open Claude Code: type  claude  in a NEW Terminal window, or use the Code tab in the Claude app."
+  [ -n "$DESKTOP_ADDED" ] && echo "     Or use a normal chat in the Claude app, after quitting and reopening it."
   echo "     Then ask: \"Check the Figma connection and tell me which file is open.\""
   echo
   echo "Step 2 is only needed once. After that, just run the plugin (step 3) each time."
