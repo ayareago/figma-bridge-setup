@@ -21,6 +21,11 @@ function Info($text) { Write-Host "    $text" }
 function Problem($text) { Write-Host "    [!] $text" -ForegroundColor Yellow; [void]$Problems.Add($text) }
 function Has($cmd) { [bool](Get-Command $cmd -ErrorAction SilentlyContinue) }
 
+# The .exe installer sets FIGMA_BRIDGE_PAUSE so its window stays open long enough to read.
+function Wait-IfInstaller {
+    if ($env:FIGMA_BRIDGE_PAUSE) { Write-Host ''; Read-Host 'Press Enter to close this window' | Out-Null }
+}
+
 # Installers change PATH in the registry, not in this window, so reload it.
 function Update-SessionPath {
     $machine = [Environment]::GetEnvironmentVariable('Path', 'Machine')
@@ -265,6 +270,7 @@ Write-Host ''
 if ($Problems.Count -gt 0) {
     Write-Host 'Almost there. Fix these, then run the same command again:' -ForegroundColor Yellow
     foreach ($p in $Problems) { Write-Host "  - $p" }
+    Wait-IfInstaller
     return
 }
 
@@ -283,4 +289,5 @@ Write-Host ''
 Write-Host 'Step 2 is only needed once. After that, just run the plugin (step 3) each time.'
 
 if ($figma) { Start-Process $figma }
+Wait-IfInstaller
 }

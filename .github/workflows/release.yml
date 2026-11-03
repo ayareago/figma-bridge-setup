@@ -1,0 +1,60 @@
+# Builds the Windows .exe and the Mac app. Pushing a tag like v1.0.0 also
+# publishes them as a GitHub release, so these links always get the newest:
+#   https://github.com/ayareago/figma-bridge-setup/releases/latest/download/FigmaBridgeSetup.exe
+#   https://github.com/ayareago/figma-bridge-setup/releases/latest/download/FigmaBridgeSetup-mac.zip
+name: Build installers
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Inno Setup
+        run: choco install innosetup -y --no-progress
+      - name: Build FigmaBridgeSetup.exe
+        shell: pwsh
+        run: |
+          $version = if ($env:GITHUB_REF_NAME -like 'v*') { $env:GITHUB_REF_NAME.Substring(1) } else { '0.0.0' }
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" "/DAppVersion=$version" windows\setup.iss
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: dist/FigmaBridgeSetup.exe
+
+  mac:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build Figma Bridge Setup.app
+        run: bash mac/build.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mac
+          path: dist/FigmaBridgeSetup-mac.zip
+
+  release:
+    needs: [windows, mac]
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" dist/* \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "Figma Bridge Setup $GITHUB_REF_NAME" \
+            --notes "Windows: download FigmaBridgeSetup.exe and open it. Mac: download FigmaBridgeSetup-mac.zip, open it, then open Figma Bridge Setup."
