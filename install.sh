@@ -110,15 +110,25 @@ find_claude_app() {
   [ -d "/Applications/Claude.app" ] || [ -d "$HOME/Applications/Claude.app" ]
 }
 
-# The Claude app keeps its settings in memory and writes them back while it runs,
-# which wipes an entry added behind its back. So add it while the app is closed.
-wait_claude_app_closed() {
-  pgrep -xq Claude || return 0
-  info "The Claude app is open. Quit it fully: click Claude in the menu bar > Quit Claude (Cmd+Q)."
-  info "Waiting for it to close (up to 3 minutes)..."
+claude_app_running() { pgrep -xq Claude; }
+
+# The Claude app keeps its settings in memory, writes them back while it runs, and only
+# reads them when it starts. So the setup closes it itself (after asking with a pop-up
+# nobody can miss), changes the settings, then opens it again.
+close_claude_app() {
+  claude_app_running || return 0
+  local answer
+  answer=$(osascript \
+    -e 'display dialog "Claude needs to close for a moment so Figma can be connected to it." & return & return & "Save anything you are typing in Claude, then click Close Claude. It will open again by itself." with title "Figma Bridge Setup" buttons {"Not now", "Close Claude"} default button "Close Claude" with icon note' \
+    -e 'button returned of result' 2>/dev/null)
+  [ "$answer" = "Close Claude" ] || return 1
+  info "Closing Claude..."
+  osascript -e 'quit app "Claude"' >/dev/null 2>&1
   local i=0
-  while pgrep -xq Claude && [ $i -lt 180 ]; do sleep 1; i=$((i + 1)); done
-  ! pgrep -xq Claude
+  while claude_app_running && [ $i -lt 20 ]; do sleep 0.5; i=$((i + 1)); done
+  pkill -x Claude 2>/dev/null
+  sleep 1
+  ! claude_app_running
 }
 
 # The Claude Code installer puts claude in ~/.local/bin; make sure new terminals can find it.
@@ -227,14 +237,17 @@ main() {
   if find_claude_app && has node; then
     step "Claude desktop app (normal chat)"
     if ask_yes "Also connect Figma to the normal chat in the Claude app?"; then
-      if wait_claude_app_closed; then
+      local was_running=""
+      claude_app_running && was_running=1
+      if close_claude_app; then
         case "$(add_mcp_server "$desktop_config" "$(desktop_app_entry)")" in
-          added)  ok "Added. You can open the Claude app again."; DESKTOP_ADDED=1 ;;
-          exists) ok "figma-console is already in the Claude app" ;;
+          added)  ok "Connected Figma to the Claude app"; DESKTOP_ADDED=1 ;;
+          exists) ok "figma-console is already in the Claude app"; DESKTOP_ADDED=1 ;;
           *)      problem "Could not update the Claude app's settings." ;;
         esac
+        if [ -n "$was_running" ]; then info "Opening Claude again..."; open -a Claude; fi
       else
-        problem "The Claude app was still open, so the normal chat was not connected. Quit it and run this again."
+        problem "Claude stayed open, so the normal chat was not connected. Run this again and click Close Claude when asked."
       fi
     else
       ok "Skipped"

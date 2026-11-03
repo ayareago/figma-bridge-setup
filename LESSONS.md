@@ -12,3 +12,6 @@
 - **Processes started from a Claude Code session die when the Claude app quits.** A helper meant to outlive the app had to be started through WMI (Win32_Process Create).
 - **With the official Figma connector also on, the chat picks it first.** That connector only works from file links. Students should say "use figma-console".
 - **First use of each figma-console tool asks for approval in the chat.** "Always allow" stops the prompts.
+- **Quitting Claude by hand isn't reliable.** On the laptop it stayed running after the student thought it was closed, so it never loaded the new settings. The installer now closes and reopens it itself.
+- **The Claude app has no Developer page any more.** Local servers show under Settings > Customize > Connectors, marked "Desktop, Local dev".
+- **The free plan runs local servers in the normal chat.** Tested 2026-11-04.

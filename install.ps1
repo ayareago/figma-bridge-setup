@@ -113,20 +113,44 @@ function Find-ClaudeAppConfig {
     return $null
 }
 
-function Test-ClaudeAppRunning {
+function Get-ClaudeAppProcesses {
     # Match the app's own folders only: Claude Code's claude.exe has the same process name.
-    [bool](Get-Process Claude -ErrorAction SilentlyContinue | Where-Object { $_.Path -like '*\WindowsApps\Claude_*' -or $_.Path -like '*\AnthropicClaude\*' })
+    Get-Process Claude -ErrorAction SilentlyContinue | Where-Object { $_.Path -like '*\WindowsApps\Claude_*' -or $_.Path -like '*\AnthropicClaude\*' }
 }
 
-# The Claude app keeps its settings in memory and writes them back while it runs,
-# which wipes an entry added behind its back. So add it while the app is closed.
-function Wait-ClaudeAppClosed {
+function Test-ClaudeAppRunning { [bool](Get-ClaudeAppProcesses) }
+
+# A pop-up on top of every window, so nobody misses it. Returns $true for OK.
+function Show-Dialog($text) {
+    Add-Type -AssemblyName System.Windows.Forms
+    $owner = New-Object System.Windows.Forms.Form -Property @{ TopMost = $true }
+    $answer = [System.Windows.Forms.MessageBox]::Show($owner, $text, 'Figma Bridge Setup', 'OKCancel', 'Information')
+    $owner.Dispose()
+    return $answer -eq 'OK'
+}
+
+# The Claude app keeps its settings in memory, writes them back while it runs, and only
+# reads them when it starts. Even "Quit" can leave it running in the tray. So the setup
+# closes it itself (after asking), changes the settings, then opens it again.
+function Close-ClaudeApp {
     if (-not (Test-ClaudeAppRunning)) { return $true }
-    Info 'The Claude app is open. Quit it fully: click ^ by the clock, right-click the Claude icon > Quit.'
-    Info 'Waiting for it to close (up to 3 minutes)...'
-    $deadline = (Get-Date).AddMinutes(3)
-    while ((Test-ClaudeAppRunning) -and (Get-Date) -lt $deadline) { Start-Sleep -Seconds 1 }
+    $ok = Show-Dialog "Claude needs to close for a moment so Figma can be connected to it.`n`nSave anything you're typing in Claude, then click OK. Claude will open again by itself."
+    if (-not $ok) { return $false }
+    Info 'Closing Claude...'
+    Get-ClaudeAppProcesses | ForEach-Object { [void]$_.CloseMainWindow() }
+    $deadline = (Get-Date).AddSeconds(10)
+    while ((Test-ClaudeAppRunning) -and (Get-Date) -lt $deadline) { Start-Sleep -Milliseconds 500 }
+    Get-ClaudeAppProcesses | Stop-Process -Force -ErrorAction SilentlyContinue
+    Start-Sleep -Seconds 2
     return -not (Test-ClaudeAppRunning)
+}
+
+function Open-ClaudeApp {
+    # The Store version can only be started through its app ID.
+    $app = Get-StartApps -ErrorAction SilentlyContinue | Where-Object { $_.Name -eq 'Claude' } | Select-Object -First 1
+    if ($app) { Start-Process "shell:AppsFolder\$($app.AppID)"; return }
+    $exe = Get-ChildItem "$env:LOCALAPPDATA\AnthropicClaude" -Filter claude.exe -ErrorAction SilentlyContinue | Select-Object -First 1
+    if ($exe) { Start-Process $exe.FullName }
 }
 
 function Find-Figma {
@@ -249,16 +273,18 @@ $desktopConfig = Find-ClaudeAppConfig
 if ($desktopConfig -and (Has 'node')) {
     Step 'Claude desktop app (normal chat)'
     if (Ask-Yes 'Also connect Figma to the normal chat in the Claude app?') {
-        if (Wait-ClaudeAppClosed) {
+        $wasRunning = Test-ClaudeAppRunning
+        if (Close-ClaudeApp) {
             # cmd /c, because apps can't start npx.cmd directly on Windows.
             $entry = '{"command":"cmd","args":["/c","npx","-y","figma-console-mcp@latest"]}'
             switch (Add-McpServer $desktopConfig $entry) {
-                'added'  { Ok 'Added. You can open the Claude app again.'; $desktopAdded = $true }
-                'exists' { Ok 'figma-console is already in the Claude app' }
+                'added'  { Ok 'Connected Figma to the Claude app'; $desktopAdded = $true }
+                'exists' { Ok 'figma-console is already in the Claude app'; $desktopAdded = $true }
                 default  { Problem "Could not update the Claude app's settings." }
             }
+            if ($wasRunning) { Info 'Opening Claude again...'; Open-ClaudeApp }
         } else {
-            Problem 'The Claude app was still open, so the normal chat was not connected. Quit it and run this again.'
+            Problem 'Claude stayed open, so the normal chat was not connected. Run this again and click OK when asked.'
         }
     } else {
         Ok 'Skipped'

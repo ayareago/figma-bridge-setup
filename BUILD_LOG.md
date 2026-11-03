@@ -1,5 +1,13 @@
 # Build log
 
+## 2026-11-04
+
+**Tested on a second Windows laptop** (new free Claude account, newer Store app 4.16336): FigmaBridgeSetup.exe installed Node and the plugin and wrote the settings correctly (confirmed with check.ps1), but the normal chat had no figma-console until Claude was ended in Task Manager and reopened. After that it showed under Settings > Customize > Connectors as "Desktop, Local dev" and named the open file. So **the free plan works for the normal chat**; only Claude Code needs a paid plan.
+
+**Changed:** step 6 no longer asks students to quit Claude. A pop-up on top of everything asks first, then the setup closes Claude itself (close, then force after 10 s), writes the settings and reopens Claude. It restarts Claude even when the entry already exists, because the laptop showed an entry can be on disk but not loaded. Added check.ps1, a read-only diagnostic. Tagged v1.1.0.
+
+**Not tested:** the close and reopen step itself. It can't run on Ayodeji's main computer without closing this Claude session; test it on the laptop.
+
 ## 2026-11-03 (late night)
 
 **Done:** Ayodeji reports the earlier one-line Mac command worked on a Mac. He asked for a download-and-click installer instead of terminal commands. Added: windows/setup.iss (Inno Setup wizard that runs install.ps1 in a visible window and keeps it open at the end), mac/ (an AppleScript app that opens Terminal and runs the bundled install.sh), and a GitHub Actions workflow that builds both and publishes a release on each v* tag. Tagged v1.0.0.
