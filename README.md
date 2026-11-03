@@ -1,8 +1,19 @@
 # Figma Desktop Bridge setup
 
-One command that gets a fresh computer ready to use Claude Code with Figma, through the figma-console MCP and its Figma Desktop Bridge plugin. Made for teaching students who have nothing installed yet.
+Gets a fresh computer ready to use Claude with Figma, through the figma-console MCP and its Figma Desktop Bridge plugin. Made for teaching students who have nothing installed yet. No Figma token needed.
 
 ## Start here
+
+### Download and open
+
+- **Windows:** [FigmaBridgeSetup.exe](https://github.com/ayareago/figma-bridge-setup/releases/latest/download/FigmaBridgeSetup.exe)
+  If Windows says "Windows protected your PC", click **More info**, then **Run anyway**.
+- **Mac:** [FigmaBridgeSetup-mac.zip](https://github.com/ayareago/figma-bridge-setup/releases/latest/download/FigmaBridgeSetup-mac.zip)
+  Open the zip, then open **Figma Bridge Setup**. If the Mac says it can't check the app, open **System Settings > Privacy & Security**, scroll down and click **Open Anyway**. If it asks to control Terminal, click **OK**.
+
+These warnings appear because the installers aren't paid-signed with Apple and Microsoft. They show once.
+
+### Or paste one command
 
 **Windows** (open PowerShell):
 

@@ -7,5 +7,9 @@ Goal: a student with a fresh Windows or Mac computer pastes one command and ends
 - [x] Test the Windows script on a computer that already has everything
 - [x] Publish as a public GitHub repo so the one-line commands work
 - [ ] Test on a fresh Windows computer
-- [ ] Test on a Mac (not tested yet at all)
+- [x] One-line command worked on a Mac (reported by Ayodeji)
+- [x] Downloadable installers (Windows .exe, Mac app) built by GitHub Actions
+- [ ] Test FigmaBridgeSetup.exe on a second Windows computer
+- [ ] Test the Mac app
+- [ ] Decide whether to pay for code signing
 - [ ] Add a short student handout with screenshots of the Figma import step

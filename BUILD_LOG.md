@@ -1,5 +1,11 @@
 # Build log
 
+## 2026-11-03 (late night)
+
+**Done:** Ayodeji reports the earlier one-line Mac command worked on a Mac. He asked for a download-and-click installer instead of terminal commands. Added: windows/setup.iss (Inno Setup wizard that runs install.ps1 in a visible window and keeps it open at the end), mac/ (an AppleScript app that opens Terminal and runs the bundled install.sh), and a GitHub Actions workflow that builds both and publishes a release on each v* tag. Tagged v1.0.0.
+
+**Next:** Ayodeji tests FigmaBridgeSetup.exe on another Windows computer; test the Mac app.
+
 ## 2026-11-03 (night)
 
 **Verified:** the normal chat in Ayodeji's Claude app (Windows Store version) used figma-console and named the open file (Class Test). The first try failed: the app wrote its settings back from memory while running and wiped the entry. Added while the app ran, the entry survived 90 s; it also survived a full quit, and the app loaded it on start.
