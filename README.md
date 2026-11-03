@@ -16,7 +16,7 @@ irm https://raw.githubusercontent.com/ayareago/figma-bridge-setup/main/install.p
 curl -fsSL https://raw.githubusercontent.com/ayareago/figma-bridge-setup/main/install.sh | bash
 ```
 
-These links only work once the repo is public on GitHub.
+Repo: https://github.com/ayareago/figma-bridge-setup (public).
 
 ## What it does
 
