@@ -21,7 +21,7 @@ Repo: https://github.com/ayareago/figma-bridge-setup (public).
 ## What it does
 
 1. Checks for Node.js 18 or newer and installs the current LTS if needed (winget or the official MSI on Windows, the official .pkg on Mac).
-2. Checks for Claude Code and runs the official installer if needed.
+2. Checks for Claude Code. If it is missing, asks before running the official installer; saying no skips it and the bridge goes straight into `~/.claude.json`.
 3. Checks for the Figma desktop app and installs it (winget on Windows, Homebrew on Mac) or opens the download page.
 4. Downloads the latest bridge plugin from npm into `~/.figma-console-mcp/plugin`.
 5. Adds the `figma-console` MCP server to Claude Code for all projects.
