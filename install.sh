@@ -13,6 +13,7 @@ PLUGIN_DIR="$HOME/.figma-console-mcp/plugin"
 MANIFEST="$PLUGIN_DIR/manifest.json"
 PROBLEMS=()
 FIGMA_APP=""
+CLAUDE=""
 
 step()    { printf '\n\033[36m==> %s\033[0m\n' "$1"; }
 ok()      { printf '    \033[32m[ok]\033[0m %s\n' "$1"; }
@@ -53,6 +54,44 @@ find_figma() {
   return 1
 }
 
+# Older installs and npm/Homebrew installs live outside ~/.local/bin, and shell aliases
+# from ~/.zshrc aren't visible to this script, so check the usual places too.
+find_claude() {
+  if has claude; then CLAUDE=$(command -v claude); return 0; fi
+  for c in "$HOME/.local/bin/claude" "$HOME/.claude/local/claude" "/opt/homebrew/bin/claude" \
+           "/usr/local/bin/claude" "$HOME/.npm-global/bin/claude"; do
+    if [ -x "$c" ]; then CLAUDE="$c"; return 0; fi
+  done
+  return 1
+}
+
+ask_yes() {
+  local answer
+  printf '    %s [Y/n] ' "$1"
+  read -r answer </dev/tty || answer=""
+  case "$answer" in [nN]*) return 1 ;; *) return 0 ;; esac
+}
+
+# Without the claude command, write the server straight into ~/.claude.json,
+# which both the terminal and the Code tab of the Claude desktop app read.
+add_to_claude_config() {
+  node -e '
+    const fs = require("fs");
+    const file = process.argv[1];
+    let config = {};
+    if (fs.existsSync(file)) {
+      const raw = fs.readFileSync(file, "utf8");
+      config = JSON.parse(raw);
+      fs.writeFileSync(file + ".backup", raw);
+    }
+    config.mcpServers = config.mcpServers || {};
+    if (config.mcpServers["figma-console"]) { console.log("exists"); process.exit(0); }
+    config.mcpServers["figma-console"] = { type: "stdio", command: "npx", args: ["-y", "figma-console-mcp@latest"], env: {} };
+    fs.writeFileSync(file, JSON.stringify(config, null, 2));
+    console.log("added");
+  ' "$HOME/.claude.json"
+}
+
 # The Claude Code installer puts claude in ~/.local/bin; make sure new terminals can find it.
 ensure_local_bin_on_path() {
   export PATH="$HOME/.local/bin:$PATH"
@@ -82,15 +121,16 @@ main() {
 
   # 2. Claude Code
   step "Claude Code"
-  ensure_local_bin_on_path
-  if has claude; then
-    ok "Claude Code $(claude --version) is installed"
-  else
-    info "Not installed. Installing Claude Code..."
+  if find_claude; then
+    ok "Claude Code $("$CLAUDE" --version) is installed"
+  elif ask_yes "Claude Code wasn't found. Install it now?"; then
+    ensure_local_bin_on_path
     curl -fsSL https://claude.ai/install.sh | bash
     hash -r
-    if has claude; then ok "Claude Code $(claude --version) installed"
+    if find_claude; then ok "Claude Code $("$CLAUDE" --version) installed"
     else problem "Claude Code did not install. See https://code.claude.com/docs/en/setup and run this again."; fi
+  else
+    ok "Skipped. The bridge will go straight into your Claude settings."
   fi
 
   # 3. Figma desktop app (the browser version can't load local plugins)
@@ -130,10 +170,10 @@ main() {
 
   # 5. Tell Claude Code about the bridge server
   step "Connect Figma to Claude Code"
-  if has claude; then
-    if claude mcp get figma-console </dev/null 2>&1 | grep -q 'No MCP server named'; then
-      claude mcp add figma-console -s user -- npx -y figma-console-mcp@latest </dev/null >/dev/null
-      if claude mcp get figma-console </dev/null 2>&1 | grep -q 'No MCP server named'; then
+  if [ -n "$CLAUDE" ]; then
+    if "$CLAUDE" mcp get figma-console </dev/null 2>&1 | grep -q 'No MCP server named'; then
+      "$CLAUDE" mcp add figma-console -s user -- npx -y figma-console-mcp@latest </dev/null >/dev/null
+      if "$CLAUDE" mcp get figma-console </dev/null 2>&1 | grep -q 'No MCP server named'; then
         problem "Could not add figma-console to Claude Code."
       else
         ok "Added figma-console to Claude Code (all projects)"
@@ -141,8 +181,14 @@ main() {
     else
       ok "figma-console is already set up in Claude Code"
     fi
+  elif has node; then
+    case "$(add_to_claude_config)" in
+      added)  ok "Added figma-console to your Claude settings (~/.claude.json)" ;;
+      exists) ok "figma-console is already in your Claude settings" ;;
+      *)      problem "Could not update ~/.claude.json." ;;
+    esac
   else
-    problem "Skipped because Claude Code is missing."
+    problem "Skipped because Node.js is missing."
   fi
 
   # What's left is done by hand in Figma
@@ -160,7 +206,7 @@ main() {
   echo "     In the file window press Cmd+Shift+G, paste this path (it is already copied) and press Enter:"
   echo "     $MANIFEST"
   echo "  3. Menu > Plugins > Development > Figma Desktop Bridge. Leave its window open."
-  echo "  4. Open a NEW Terminal window, type  claude  and sign in."
+  echo "  4. Open Claude Code: type  claude  in a NEW Terminal window, or use the Code tab in the Claude app."
   echo "     Then ask: \"Check the Figma connection and tell me which file is open.\""
   echo
   echo "Step 2 is only needed once. After that, just run the plugin (step 3) each time."

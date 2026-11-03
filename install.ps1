@@ -53,6 +53,45 @@ function Install-NodeMsi {
     Remove-Item $msi -Force
 }
 
+# npm installs and older installs live outside ~/.local/bin, so check those too.
+function Find-Claude {
+    $cmd = Get-Command claude -ErrorAction SilentlyContinue | Select-Object -First 1
+    if ($cmd) { return $cmd.Source }
+    $paths = @("$HOME\.local\bin\claude.exe", "$env:APPDATA\npm\claude.cmd", "$HOME\.claude\local\claude.exe")
+    return $paths | Where-Object { Test-Path $_ } | Select-Object -First 1
+}
+
+function Ask-Yes($question) {
+    $answer = Read-Host "    $question [Y/n]"
+    return -not ($answer -match '^[nN]')
+}
+
+# Without the claude command, write the server straight into ~/.claude.json,
+# which both the terminal and the Code tab of the Claude desktop app read.
+# Done in Node because PowerShell 5.1's JSON round trip can damage a large config.
+function Add-ToClaudeConfig {
+    $js = @'
+const fs = require("fs");
+const file = process.argv[2];
+let config = {};
+if (fs.existsSync(file)) {
+  const raw = fs.readFileSync(file, "utf8");
+  config = JSON.parse(raw);
+  fs.writeFileSync(file + ".backup", raw);
+}
+config.mcpServers = config.mcpServers || {};
+if (config.mcpServers["figma-console"]) { console.log("exists"); process.exit(0); }
+config.mcpServers["figma-console"] = { type: "stdio", command: "npx", args: ["-y", "figma-console-mcp@latest"], env: {} };
+fs.writeFileSync(file, JSON.stringify(config, null, 2));
+console.log("added");
+'@
+    $script = Join-Path $env:TEMP 'figma-bridge-config.js'
+    Set-Content $script $js -Encoding ascii
+    $result = (& node $script (Join-Path $HOME '.claude.json') 2>&1 | Out-String).Trim()
+    Remove-Item $script -Force
+    return $result
+}
+
 function Find-Figma {
     $paths = @("$env:LOCALAPPDATA\Figma\Figma.exe", "$env:ProgramFiles\Figma\Figma.exe")
     return $paths | Where-Object { Test-Path $_ } | Select-Object -First 1
@@ -87,15 +126,18 @@ if ($major -ge 18) {
 
 # 2. Claude Code
 Step 'Claude Code'
-if (Has 'claude') {
-    Ok "Claude Code $(& claude --version) is installed"
-} else {
-    Info 'Not installed. Installing Claude Code...'
+$claude = Find-Claude
+if ($claude) {
+    Ok "Claude Code $(& $claude --version) is installed"
+} elseif (Ask-Yes "Claude Code wasn't found. Install it now?") {
     # Separate process, so the official installer can't close this window.
     powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "irm https://claude.ai/install.ps1 | iex"
     Update-SessionPath
-    if (Has 'claude') { Ok "Claude Code $(& claude --version) installed" }
+    $claude = Find-Claude
+    if ($claude) { Ok "Claude Code $(& $claude --version) installed" }
     else { Problem 'Claude Code did not install. See https://code.claude.com/docs/en/setup and run this again.' }
+} else {
+    Ok 'Skipped. The bridge will go straight into your Claude settings.'
 }
 
 # 3. Figma desktop app (the browser version can't load local plugins)
@@ -141,18 +183,24 @@ if (Has 'npm.cmd') {
 
 # 5. Tell Claude Code about the bridge server
 Step 'Connect Figma to Claude Code'
-if (Has 'claude') {
-    $existing = (& claude mcp get figma-console 2>&1 | Out-String)
+if ($claude) {
+    $existing = (& $claude mcp get figma-console 2>&1 | Out-String)
     if ($existing -match 'No MCP server named') {
-        & claude mcp add figma-console -s user -- npx -y figma-console-mcp@latest | Out-Null
-        $check = (& claude mcp get figma-console 2>&1 | Out-String)
+        & $claude mcp add figma-console -s user -- npx -y figma-console-mcp@latest | Out-Null
+        $check = (& $claude mcp get figma-console 2>&1 | Out-String)
         if ($check -match 'No MCP server named') { Problem 'Could not add figma-console to Claude Code.' }
         else { Ok 'Added figma-console to Claude Code (all projects)' }
     } else {
         Ok 'figma-console is already set up in Claude Code'
     }
+} elseif (Has 'node') {
+    switch (Add-ToClaudeConfig) {
+        'added'  { Ok 'Added figma-console to your Claude settings (.claude.json)' }
+        'exists' { Ok 'figma-console is already in your Claude settings' }
+        default  { Problem 'Could not update .claude.json.' }
+    }
 } else {
-    Problem 'Skipped because Claude Code is missing.'
+    Problem 'Skipped because Node.js is missing.'
 }
 
 # What's left is done by hand in Figma
@@ -171,7 +219,7 @@ Write-Host '  2. Menu > Plugins > Development > Import plugin from manifest...'
 Write-Host '     Paste this path in the file name box (it is already copied) and press Enter:'
 Write-Host "     $Manifest" -ForegroundColor White
 Write-Host '  3. Menu > Plugins > Development > Figma Desktop Bridge. Leave its window open.'
-Write-Host '  4. Open a NEW terminal, type  claude  and sign in.'
+Write-Host '  4. Open Claude Code: type  claude  in a NEW terminal, or use the Code tab in the Claude app.'
 Write-Host '     Then ask: "Check the Figma connection and tell me which file is open."'
 Write-Host ''
 Write-Host 'Step 2 is only needed once. After that, just run the plugin (step 3) each time.'
