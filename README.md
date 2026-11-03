@@ -47,3 +47,11 @@ Running it again is safe. Anything already installed is skipped.
 - `install.sh`: Mac installer
 - `PLAN.md`, `BUILD_LOG.md`, `DECISIONS.md`, `LESSONS.md`: project records
 - `research/`: sources
+
+## If it doesn't connect (Windows)
+
+Run this read-only check in PowerShell and send a screenshot of the result:
+
+```powershell
+irm https://raw.githubusercontent.com/ayareago/figma-bridge-setup/main/check.ps1 | iex
+```
