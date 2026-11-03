@@ -12,6 +12,7 @@ AppName=Figma Bridge Setup
 AppVersion={#AppVersion}
 AppPublisher=Ayodeji Areago
 AppPublisherURL=https://github.com/ayareago/figma-bridge-setup
+VersionInfoDescription=Figma Bridge Setup
 CreateAppDir=no
 Uninstallable=no
 PrivilegesRequired=lowest
