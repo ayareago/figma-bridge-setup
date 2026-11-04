@@ -17,6 +17,8 @@ FIGMA_APP=""
 CLAUDE=""
 DESKTOP_ADDED=""
 CHATGPT_ADDED=""
+USE_CLAUDE=""
+USE_CHATGPT=""
 
 step()    { printf '\n\033[36m==> %s\033[0m\n' "$1"; }
 ok()      { printf '    \033[32m[ok]\033[0m %s\n' "$1"; }
@@ -172,6 +174,27 @@ add_codex_mcp_server() {
   ' "$1"
 }
 
+# Which AI app the student uses with Figma. FIGMA_BRIDGE_APPS (claude, chatgpt or both)
+# answers the question in advance, for testing.
+ask_apps() {
+  local answer="${FIGMA_BRIDGE_APPS:-}"
+  case "$answer" in
+    claude)  USE_CLAUDE=1; return ;;
+    chatgpt) USE_CHATGPT=1; return ;;
+    both)    USE_CLAUDE=1; USE_CHATGPT=1; return ;;
+  esac
+  printf '\nWhich app will you use with Figma?\n  1. Claude\n  2. ChatGPT\n  3. Both\n'
+  while true; do
+    printf 'Type 1, 2 or 3 and press Enter: '
+    read -r answer </dev/tty || answer=3
+    case "$answer" in
+      1) USE_CLAUDE=1; return ;;
+      2) USE_CHATGPT=1; return ;;
+      3) USE_CLAUDE=1; USE_CHATGPT=1; return ;;
+    esac
+  done
+}
+
 # The Claude Code installer puts claude in ~/.local/bin; make sure new terminals can find it.
 ensure_local_bin_on_path() {
   export PATH="$HOME/.local/bin:$PATH"
@@ -184,6 +207,7 @@ ensure_local_bin_on_path() {
 
 main() {
   printf '\nFigma Desktop Bridge setup\n'
+  ask_apps
 
   # 1. Node.js (runs the bridge server)
   step "Node.js"
@@ -200,6 +224,7 @@ main() {
   fi
 
   # 2. Claude Code
+  if [ -n "$USE_CLAUDE" ]; then
   step "Claude Code"
   if find_claude; then
     ok "Claude Code $("$CLAUDE" --version) is installed"
@@ -211,6 +236,7 @@ main() {
     else problem "Claude Code did not install. See https://code.claude.com/docs/en/setup and run this again."; fi
   else
     ok "Skipped. The bridge will go straight into your Claude settings."
+  fi
   fi
 
   # 3. Figma desktop app (the browser version can't load local plugins)
@@ -249,6 +275,7 @@ main() {
   fi
 
   # 5. Tell Claude Code about the bridge server
+  if [ -n "$USE_CLAUDE" ]; then
   step "Connect Figma to Claude Code"
   if [ -n "$CLAUDE" ]; then
     if "$CLAUDE" mcp get figma-console </dev/null 2>&1 | grep -q 'No MCP server named'; then
@@ -272,10 +299,11 @@ main() {
   else
     problem "Skipped because Node.js is missing."
   fi
+  fi
 
   # 6. Optional: the normal chat in the Claude desktop app
   local desktop_config="$HOME/Library/Application Support/Claude/claude_desktop_config.json"
-  if find_claude_app && has node; then
+  if [ -n "$USE_CLAUDE" ] && find_claude_app && has node; then
     step "Claude desktop app (normal chat)"
     if ask_yes "Also connect Figma to the normal chat in the Claude app?"; then
       local was_running=""
@@ -295,10 +323,10 @@ main() {
     fi
   fi
 
-  # 7. Optional: the ChatGPT desktop app
-  if find_chatgpt_app && has node; then
-    step "ChatGPT desktop app"
-    if ask_yes "Also connect Figma to the ChatGPT app?"; then
+  # 7. The ChatGPT desktop app
+  if [ -n "$USE_CHATGPT" ]; then
+    step "Connect Figma to the ChatGPT app"
+    if has node; then
       local codex_config="${CODEX_HOME:-$HOME/.codex}/config.toml"
       # Same entry as the Claude app: full path to npx, because apps don't get the Terminal's PATH.
       case "$(add_codex_mcp_server "$codex_config" "$(desktop_app_entry)")" in
@@ -306,8 +334,13 @@ main() {
         exists) ok "figma-console is already in the ChatGPT app"; CHATGPT_ADDED=1 ;;
         *)      problem "Could not update the ChatGPT app's settings ($codex_config)." ;;
       esac
+      # The settings are saved either way; the app reads them when it opens.
+      if ! find_chatgpt_app; then
+        info "The ChatGPT app isn't installed yet. Install it from the page that just opened."
+        open "https://chatgpt.com/download"
+      fi
     else
-      ok "Skipped"
+      problem "Skipped because Node.js is missing."
     fi
   fi
 
@@ -326,11 +359,12 @@ main() {
   echo "     In the file window press Cmd+Shift+G, paste this path (it is already copied) and press Enter:"
   echo "     $MANIFEST"
   echo "  3. Menu > Plugins > Development > Figma Desktop Bridge. Leave its window open."
-  echo "  4. Open Claude Code: type  claude  in a NEW Terminal window, or use the Code tab in the Claude app."
-  [ -n "$DESKTOP_ADDED" ] && echo "     Or use a normal chat in the Claude app. Say 'use figma-console' so it doesn't pick the Figma web connector."
+  echo "  4. Open your AI app:"
+  [ -n "$USE_CLAUDE" ] && echo "     Claude Code: type  claude  in a NEW Terminal window, or use the Code tab in the Claude app."
+  [ -n "$DESKTOP_ADDED" ] && echo "     Claude app chat: say 'use figma-console' so it doesn't pick the Figma web connector."
   if [ -n "$CHATGPT_ADDED" ]; then
-    echo "     Or use the ChatGPT app: quit it fully (Cmd+Q) and open it again (or Settings > MCP servers > Restart),"
-    echo "     start a new chat in Codex and say 'use figma-console'."
+    echo "     ChatGPT app: if it was open, quit it fully (Cmd+Q) and open it again."
+    echo "     Start a new chat in Codex and say 'use figma-console'."
   fi
   echo "     Then ask: \"Check the Figma connection and tell me which file is open.\""
   echo

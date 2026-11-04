@@ -1,5 +1,13 @@
 # Build log
 
+## 2026-11-04 (night): choose Claude, ChatGPT or both
+
+**Why:** Ayodeji asked for the setup to ask up front which app the student uses.
+
+**Done:** both scripts now start by asking "Which app will you use with Figma?" (1 Claude, 2 ChatGPT, 3 Both). Claude steps (Claude Code, its settings, the Claude app chat) only run for Claude; the ChatGPT step only for ChatGPT, and no longer asks a second yes/no. If the ChatGPT app isn't installed yet, the settings are still written and the download page opens. The closing steps list only the chosen apps. `FIGMA_BRIDGE_APPS=claude|chatgpt|both` answers the question in advance, for testing.
+
+**Tested:** Windows script parses; Mac script passes `bash -n`, and its choice logic was checked in Git Bash for all three preset values.
+
 ## 2026-11-04 (evening): ChatGPT desktop app
 
 **Why:** some students use ChatGPT, not Claude.
