@@ -6,7 +6,9 @@
 
 **Done:** both scripts now start by asking "Which app will you use with Figma?" (1 Claude, 2 ChatGPT, 3 Both). Claude steps (Claude Code, its settings, the Claude app chat) only run for Claude; the ChatGPT step only for ChatGPT, and no longer asks a second yes/no. If the ChatGPT app isn't installed yet, the settings are still written and the download page opens. The closing steps list only the chosen apps. `FIGMA_BRIDGE_APPS=claude|chatgpt|both` answers the question in advance, for testing.
 
-**Tested:** Windows script parses; Mac script passes `bash -n`, and its choice logic was checked in Git Bash for all three preset values.
+**Tested on this laptop with the new ChatGPT app** (Store package OpenAI.Codex 26.1029.7803.0, Start menu name "ChatGPT"): detection finds it. A full run with ChatGPT chosen skipped every Claude step, kept a backup and added the entry. Opening ChatGPT rewrote config.toml (Codex does this on start) and the figma-console entry survived. Before sign-in, ChatGPT's background service (codex app-server) was running but hadn't started the bridge. Still to check once Ayodeji signs in: the server shows under Settings > MCP servers, and a Codex chat sees the open Figma file.
+
+**Also tested:** Windows script parses; Mac script passes `bash -n`, and its choice logic was checked in Git Bash for all three preset values.
 
 ## 2026-11-04 (evening): ChatGPT desktop app
 

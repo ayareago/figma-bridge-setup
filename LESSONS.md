@@ -18,4 +18,6 @@
 - **ChatGPT on the web and the ChatGPT desktop app treat MCP differently.** The web only connects remote servers (Business and Enterprise). The desktop app runs local servers from ~/.codex/config.toml because it now includes Codex. Search results and older community posts still say "ChatGPT can't use local servers", which is only true of the web.
 - **Codex gives MCP servers 10 seconds to start by default.** `npx -y` downloading the package for the first time can take longer, so the entry sets 60.
 - **Git Bash rewrites `/c` into a drive path when calling Windows programs.** A test of `cmd /c npx` from Git Bash opened an interactive cmd instead. Test Windows launch commands from PowerShell.
+- **On Windows the ChatGPT app is the Store package OpenAI.Codex**, shown in the Start menu as "ChatGPT". It runs Codex as a background `codex app-server` process and rewrites config.toml when it starts, keeping entries it didn't write.
+- **Claude's and ChatGPT's bridge processes look the same** (`cmd /c npx -y figma-console-mcp@latest`). Check the parent process before deciding which app started one.
 - **help.openai.com blocks plain fetching (403).** Read it in a real browser.
