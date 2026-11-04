@@ -1,5 +1,19 @@
 # Build log
 
+## 2026-11-04 (evening): ChatGPT desktop app
+
+**Why:** some students use ChatGPT, not Claude.
+
+**Found (OpenAI docs, see research/sources.md):** ChatGPT on the web only takes remote MCP servers, and only on Business and Enterprise plans. The ChatGPT desktop app is different: it now includes Codex and runs local (STDIO) servers listed in `~/.codex/config.toml` (`%USERPROFILE%.codex` on Windows), on Windows and Mac. So no tunnel or hosted server was needed.
+
+**Done:** new optional step 7 in both scripts. If the ChatGPT app is installed (Windows: a Start menu entry named ChatGPT or Codex, or an OpenAI Store package; Mac: ChatGPT.app or Codex.app), it asks, then appends a `[mcp_servers.figma-console]` table to config.toml with a backup. Windows uses `cmd /c npx`, Mac the full npx path plus PATH, like the Claude app entries. `startup_timeout_sec = 60` because Codex's default is 10 s and a first npx download takes longer. The closing steps tell students to restart ChatGPT and use a Codex chat. README "Start here" now explains both apps; the .exe welcome text mentions ChatGPT.
+
+**Tested on this Windows laptop:** the writer on a new file, on a copy of the real config.toml with no final newline, and on a rerun ("exists"); the backup matched the original. Codex 0.137 (`codex mcp get`) read both results correctly. The exact launch command, started without a shell the way an app does, answered MCP initialize and listed 130 tools including figma_get_status (10.4 s with npx already cached). The Mac writer ran in Git Bash and Codex read its output.
+
+**Not tested:** the ChatGPT app itself on either system (it isn't installed on this laptop, and the old Codex sign-in here has expired, so a live Codex prompt failed at login). Not checked: whether the tools also show in ChatGPT's Chat or Work modes, whether the free plan gets local MCP, the Windows Store package name (detection leans on the Start menu name), and whether a fresh student's first start fits in 60 s. Nothing pushed; no new release tagged.
+
+**Next:** Ayodeji approves, then push and tag a release so the downloads include step 7. Test with a student who has the ChatGPT app.
+
 ## 2026-11-04
 
 **Tested on a second Windows laptop** (new free Claude account, newer Store app 4.16336): FigmaBridgeSetup.exe installed Node and the plugin and wrote the settings correctly (confirmed with check.ps1), but the normal chat had no figma-console until Claude was ended in Task Manager and reopened. After that it showed under Settings > Customize > Connectors as "Desktop, Local dev" and named the open file. So **the free plan works for the normal chat**; only Claude Code needs a paid plan.

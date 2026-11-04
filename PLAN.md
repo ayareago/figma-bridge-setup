@@ -1,6 +1,6 @@
 # Plan
 
-Goal: a student with a fresh Windows or Mac computer pastes one command and ends up with Claude Code talking to Figma.
+Goal: a student with a fresh Windows or Mac computer pastes one command and ends up with Claude (or ChatGPT) talking to Figma.
 
 - [x] Windows installer (`install.ps1`)
 - [x] Mac installer (`install.sh`)
@@ -12,4 +12,6 @@ Goal: a student with a fresh Windows or Mac computer pastes one command and ends
 - [ ] Test FigmaBridgeSetup.exe on a second Windows computer
 - [ ] Test the Mac app
 - [ ] Decide whether to pay for code signing
+- [x] Offer to connect the ChatGPT desktop app (step 7)
+- [ ] Test step 7 with the ChatGPT app on Windows and Mac
 - [ ] Add a short student handout with screenshots of the Figma import step

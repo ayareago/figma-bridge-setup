@@ -1,8 +1,17 @@
 # Figma Desktop Bridge setup
 
-Gets a fresh computer ready to use Claude with Figma, through the figma-console MCP and its Figma Desktop Bridge plugin. Made for teaching students who have nothing installed yet. No Figma token needed.
+Gets a fresh computer ready to use Claude or ChatGPT with Figma, through the figma-console MCP and its Figma Desktop Bridge plugin. Made for teaching students who have nothing installed yet. No Figma token needed.
 
 ## Start here
+
+### Claude or ChatGPT
+
+The setup works with either app, or both.
+
+- **Claude:** it connects Claude Code. If the Claude desktop app is installed, it asks whether to connect its normal chat as well. The free plan works in the normal chat; Claude Code needs a paid plan.
+- **ChatGPT:** if the ChatGPT desktop app is installed, it asks whether to connect it. Afterwards, quit ChatGPT fully and open it again, start a new chat in **Codex** and say "use figma-console". OpenAI lists this for paid plans (Plus and up). Whether it works on the free plan hasn't been checked.
+
+If a student only uses ChatGPT, they can say no when asked to install Claude Code.
 
 ### Download and open
 
@@ -37,7 +46,8 @@ Repo: https://github.com/ayareago/figma-bridge-setup (public).
 4. Downloads the latest bridge plugin from npm into `~/.figma-console-mcp/plugin`.
 5. Adds the `figma-console` MCP server to Claude Code for all projects.
 6. If the Claude desktop app is installed, offers to connect its normal chat too (writes `claude_desktop_config.json`).
-7. Copies the plugin's manifest path to the clipboard and prints the last steps, which have to be done by hand in Figma.
+7. If the ChatGPT desktop app is installed, offers to connect it too (adds `figma-console` to `~/.codex/config.toml`, the settings file ChatGPT shares with Codex).
+8. Copies the plugin's manifest path to the clipboard and prints the last steps, which have to be done by hand in Figma.
 
 Running it again is safe. Anything already installed is skipped.
 

@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Figma Desktop Bridge setup for macOS.
 # Checks for Node.js, Claude Code and Figma, installs what's missing,
-# downloads the bridge plugin and connects it to Claude Code.
+# downloads the bridge plugin and connects it to Claude Code
+# (and, if they're installed, the Claude and ChatGPT desktop apps).
 # Safe to run again: anything already set up is skipped.
 #
 # Run in Terminal:
@@ -15,6 +16,7 @@ PROBLEMS=()
 FIGMA_APP=""
 CLAUDE=""
 DESKTOP_ADDED=""
+CHATGPT_ADDED=""
 
 step()    { printf '\n\033[36m==> %s\033[0m\n' "$1"; }
 ok()      { printf '    \033[32m[ok]\033[0m %s\n' "$1"; }
@@ -129,6 +131,45 @@ close_claude_app() {
   pkill -x Claude 2>/dev/null
   sleep 1
   ! claude_app_running
+}
+
+# The ChatGPT desktop app (which now includes Codex) runs local MCP servers listed in
+# ~/.codex/config.toml, the same file Codex reads.
+find_chatgpt_app() {
+  for app in "/Applications/ChatGPT.app" "$HOME/Applications/ChatGPT.app" \
+             "/Applications/Codex.app" "$HOME/Applications/Codex.app"; do
+    [ -d "$app" ] && return 0
+  done
+  return 1
+}
+
+# Adds a [mcp_servers.figma-console] table to a Codex config.toml, keeping a backup.
+# Prints "added" or "exists". Appending a new table leaves the rest of the file untouched.
+# Usage: add_codex_mcp_server <file> <server entry as JSON>
+add_codex_mcp_server() {
+  FIGMA_BRIDGE_ENTRY="$2" node -e '
+    const fs = require("fs");
+    const path = require("path");
+    const file = process.argv[1];
+    const entry = JSON.parse(process.env.FIGMA_BRIDGE_ENTRY);
+    let raw = fs.existsSync(file) ? fs.readFileSync(file, "utf8") : "";
+    if (/^\s*\[mcp_servers\.("?)figma-console\1\]/m.test(raw)) { console.log("exists"); process.exit(0); }
+    if (raw) fs.writeFileSync(file + ".backup", raw);
+    // JSON strings are valid TOML basic strings.
+    const s = JSON.stringify;
+    let block = "\n# Added by Figma Bridge Setup\n[mcp_servers.figma-console]\n" +
+      "command = " + s(entry.command) + "\n" +
+      "args = [" + entry.args.map(a => s(a)).join(", ") + "]\n" +
+      "startup_timeout_sec = 60\n";
+    if (entry.env) {
+      block += "\n[mcp_servers.figma-console.env]\n";
+      for (const [k, v] of Object.entries(entry.env)) block += k + " = " + s(v) + "\n";
+    }
+    if (raw && !raw.endsWith("\n")) raw += "\n";
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.writeFileSync(file, raw + block);
+    console.log("added");
+  ' "$1"
 }
 
 # The Claude Code installer puts claude in ~/.local/bin; make sure new terminals can find it.
@@ -254,6 +295,22 @@ main() {
     fi
   fi
 
+  # 7. Optional: the ChatGPT desktop app
+  if find_chatgpt_app && has node; then
+    step "ChatGPT desktop app"
+    if ask_yes "Also connect Figma to the ChatGPT app?"; then
+      local codex_config="${CODEX_HOME:-$HOME/.codex}/config.toml"
+      # Same entry as the Claude app: full path to npx, because apps don't get the Terminal's PATH.
+      case "$(add_codex_mcp_server "$codex_config" "$(desktop_app_entry)")" in
+        added)  ok "Connected Figma to the ChatGPT app ($codex_config)"; CHATGPT_ADDED=1 ;;
+        exists) ok "figma-console is already in the ChatGPT app"; CHATGPT_ADDED=1 ;;
+        *)      problem "Could not update the ChatGPT app's settings ($codex_config)." ;;
+      esac
+    else
+      ok "Skipped"
+    fi
+  fi
+
   # What's left is done by hand in Figma
   echo
   if [ ${#PROBLEMS[@]} -gt 0 ]; then
@@ -271,6 +328,10 @@ main() {
   echo "  3. Menu > Plugins > Development > Figma Desktop Bridge. Leave its window open."
   echo "  4. Open Claude Code: type  claude  in a NEW Terminal window, or use the Code tab in the Claude app."
   [ -n "$DESKTOP_ADDED" ] && echo "     Or use a normal chat in the Claude app. Say 'use figma-console' so it doesn't pick the Figma web connector."
+  if [ -n "$CHATGPT_ADDED" ]; then
+    echo "     Or use the ChatGPT app: quit it fully (Cmd+Q) and open it again (or Settings > MCP servers > Restart),"
+    echo "     start a new chat in Codex and say 'use figma-console'."
+  fi
   echo "     Then ask: \"Check the Figma connection and tell me which file is open.\""
   echo
   echo "Step 2 is only needed once. After that, just run the plugin (step 3) each time."

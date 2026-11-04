@@ -1,6 +1,7 @@
 # Figma Desktop Bridge setup for Windows.
 # Checks for Node.js, Claude Code and Figma, installs what's missing,
-# downloads the bridge plugin and connects it to Claude Code.
+# downloads the bridge plugin and connects it to Claude Code
+# (and, if they're installed, the Claude and ChatGPT desktop apps).
 # Safe to run again: anything already set up is skipped.
 #
 # Run in PowerShell:
@@ -153,6 +154,53 @@ function Open-ClaudeApp {
     if ($exe) { Start-Process $exe.FullName }
 }
 
+# The ChatGPT desktop app (which now includes Codex) runs local MCP servers listed in
+# ~/.codex/config.toml, the same file Codex reads. Returns $true if the app looks installed.
+function Find-ChatGPTApp {
+    if (Get-AppxPackage -ErrorAction SilentlyContinue | Where-Object { $_.Name -like 'OpenAI.*' }) { return $true }
+    return [bool](Get-StartApps -ErrorAction SilentlyContinue | Where-Object { $_.Name -in 'ChatGPT', 'Codex' })
+}
+
+function Get-CodexConfig {
+    $dir = if ($env:CODEX_HOME) { $env:CODEX_HOME } else { Join-Path $HOME '.codex' }
+    return Join-Path $dir 'config.toml'
+}
+
+# Adds a [mcp_servers.figma-console] table to a Codex config.toml, keeping a backup.
+# Returns "added" or "exists". Appending a new table leaves the rest of the file untouched.
+function Add-CodexMcpServer($file, $entryJson) {
+    $js = @'
+const fs = require("fs");
+const path = require("path");
+const file = process.argv[2];
+const entry = JSON.parse(process.env.FIGMA_BRIDGE_ENTRY);
+let raw = fs.existsSync(file) ? fs.readFileSync(file, "utf8") : "";
+if (/^\s*\[mcp_servers\.("?)figma-console\1\]/m.test(raw)) { console.log("exists"); process.exit(0); }
+if (raw) fs.writeFileSync(file + ".backup", raw);
+// JSON strings are valid TOML basic strings.
+const s = JSON.stringify;
+let block = "\n# Added by Figma Bridge Setup\n[mcp_servers.figma-console]\n" +
+  "command = " + s(entry.command) + "\n" +
+  "args = [" + entry.args.map(a => s(a)).join(", ") + "]\n" +
+  "startup_timeout_sec = 60\n";
+if (entry.env) {
+  block += "\n[mcp_servers.figma-console.env]\n";
+  for (const [k, v] of Object.entries(entry.env)) block += k + " = " + s(v) + "\n";
+}
+if (raw && !raw.endsWith("\n")) raw += "\n";
+fs.mkdirSync(path.dirname(file), { recursive: true });
+fs.writeFileSync(file, raw + block);
+console.log("added");
+'@
+    $script = Join-Path $env:TEMP 'figma-bridge-codex.js'
+    Set-Content $script $js -Encoding ascii
+    $env:FIGMA_BRIDGE_ENTRY = $entryJson
+    $result = (& node $script $file 2>&1 | Out-String).Trim()
+    Remove-Item Env:\FIGMA_BRIDGE_ENTRY
+    Remove-Item $script -Force
+    return $result
+}
+
 function Find-Figma {
     $paths = @("$env:LOCALAPPDATA\Figma\Figma.exe", "$env:ProgramFiles\Figma\Figma.exe")
     return $paths | Where-Object { Test-Path $_ } | Select-Object -First 1
@@ -291,6 +339,24 @@ if ($desktopConfig -and (Has 'node')) {
     }
 }
 
+# 7. Optional: the ChatGPT desktop app
+$chatgptAdded = $false
+if ((Find-ChatGPTApp) -and (Has 'node')) {
+    Step 'ChatGPT desktop app'
+    if (Ask-Yes 'Also connect Figma to the ChatGPT app?') {
+        # cmd /c, for the same reason as the Claude app: apps can't start npx.cmd directly.
+        $entry = '{"command":"cmd","args":["/c","npx","-y","figma-console-mcp@latest"]}'
+        $codexConfig = Get-CodexConfig
+        switch (Add-CodexMcpServer $codexConfig $entry) {
+            'added'  { Ok "Connected Figma to the ChatGPT app ($codexConfig)"; $chatgptAdded = $true }
+            'exists' { Ok 'figma-console is already in the ChatGPT app'; $chatgptAdded = $true }
+            default  { Problem "Could not update the ChatGPT app's settings ($codexConfig)." }
+        }
+    } else {
+        Ok 'Skipped'
+    }
+}
+
 # What's left is done by hand in Figma
 Write-Host ''
 if ($Problems.Count -gt 0) {
@@ -310,6 +376,10 @@ Write-Host "     $Manifest" -ForegroundColor White
 Write-Host '  3. Menu > Plugins > Development > Figma Desktop Bridge. Leave its window open.'
 Write-Host '  4. Open Claude Code: type  claude  in a NEW terminal, or use the Code tab in the Claude app.'
 if ($desktopAdded) { Write-Host "     Or use a normal chat in the Claude app. Say 'use figma-console' so it doesn't pick the Figma web connector." }
+if ($chatgptAdded) {
+    Write-Host '     Or use the ChatGPT app: quit it fully and open it again (or Settings > MCP servers > Restart),'
+    Write-Host "     start a new chat in Codex and say 'use figma-console'."
+}
 Write-Host '     Then ask: "Check the Figma connection and tell me which file is open."'
 Write-Host ''
 Write-Host 'Step 2 is only needed once. After that, just run the plugin (step 3) each time.'

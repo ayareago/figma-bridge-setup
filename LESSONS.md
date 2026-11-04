@@ -15,3 +15,7 @@
 - **Quitting Claude by hand isn't reliable.** On the laptop it stayed running after the student thought it was closed, so it never loaded the new settings. The installer now closes and reopens it itself.
 - **The Claude app has no Developer page any more.** Local servers show under Settings > Customize > Connectors, marked "Desktop, Local dev".
 - **The free plan runs local servers in the normal chat.** Tested 2026-11-04.
+- **ChatGPT on the web and the ChatGPT desktop app treat MCP differently.** The web only connects remote servers (Business and Enterprise). The desktop app runs local servers from ~/.codex/config.toml because it now includes Codex. Search results and older community posts still say "ChatGPT can't use local servers", which is only true of the web.
+- **Codex gives MCP servers 10 seconds to start by default.** `npx -y` downloading the package for the first time can take longer, so the entry sets 60.
+- **Git Bash rewrites `/c` into a drive path when calling Windows programs.** A test of `cmd /c npx` from Git Bash opened an interactive cmd instead. Test Windows launch commands from PowerShell.
+- **help.openai.com blocks plain fetching (403).** Read it in a real browser.
