@@ -21,3 +21,4 @@
 - **On Windows the ChatGPT app is the Store package OpenAI.Codex**, shown in the Start menu as "ChatGPT". It runs Codex as a background `codex app-server` process and rewrites config.toml when it starts, keeping entries it didn't write.
 - **Claude's and ChatGPT's bridge processes look the same** (`cmd /c npx -y figma-console-mcp@latest`). Check the parent process before deciding which app started one.
 - **help.openai.com blocks plain fetching (403).** Read it in a real browser.
+- **ChatGPT's answer screen doesn't show which Figma tool it used.** Its "Sources: Figma" panel and file link come from its own connector even when figma-console did the work. The truth is in the expanded "Worked for..." steps, or the chat log under `~/.codex/sessions`.

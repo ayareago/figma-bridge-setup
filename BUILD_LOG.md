@@ -1,5 +1,13 @@
 # Build log
 
+## 2026-11-05: ChatGPT app works; v1.2.0
+
+**Tested on this computer:** after Ayodeji signed in, ChatGPT's background service started the bridge on its own. In a Codex chat, "What Figma file do I have open?" named the open file and page. Its chat log (`~/.codex/sessions/...jsonl`) shows it called `figma_console`'s `figma_list_open_files` and got the answer over the Desktop Bridge websocket. It took almost 6 minutes: it first looked through ChatGPT's own Figma connector tools, then waited about 30 s for the bridge's first start.
+
+**Changed:** README says ChatGPT has its own Figma connector, and how to see which tool it used. Pushed the ChatGPT commits and tagged v1.2.0 so the downloads include them.
+
+**Not tested:** the ChatGPT step on a Mac, on a free plan, or from a student's fresh computer.
+
 ## 2026-11-04 (night): choose Claude, ChatGPT or both
 
 **Why:** Ayodeji asked for the setup to ask up front which app the student uses.

@@ -9,7 +9,7 @@ Gets a fresh computer ready to use Claude or ChatGPT with Figma, through the fig
 The first thing the setup asks is which app you use: Claude, ChatGPT or both. It only sets up what you pick.
 
 - **Claude:** it connects Claude Code. If the Claude desktop app is installed, it asks whether to connect its normal chat as well. The free plan works in the normal chat; Claude Code needs a paid plan.
-- **ChatGPT:** it connects the ChatGPT desktop app, and opens the download page if the app isn't installed yet. Afterwards, quit ChatGPT fully and open it again, start a new chat in **Codex** and say "use figma-console". OpenAI lists this for paid plans (Plus and up). Whether it works on the free plan hasn't been checked.
+- **ChatGPT:** it connects the ChatGPT desktop app, and opens the download page if the app isn't installed yet. Afterwards, quit ChatGPT fully and open it again, start a new chat in **Codex** and say "use figma-console". ChatGPT also has its own Figma connector and may pick that one if you don't name figma-console. To see which one it used, open the "Worked for..." line above its answer: figma-console's tools have `figma_console` in their names. OpenAI lists this for paid plans (Plus and up). Whether it works on the free plan hasn't been checked.
 
 ### Download and open
 
